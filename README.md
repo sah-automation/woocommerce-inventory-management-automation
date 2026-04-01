@@ -47,4 +47,4 @@ An end-to-end automation solution built with **n8n** to streamline inventory man
 
 ## 🎥 Demo
 
-Check out the demo video: `https://www.loom.com/share/a5014b41a78b49ffa7d23efd52c9b66a` for a full walkthrough of the system.
+Check out the demo video: [WooCommerce Inventory Management Automation Loom Video](https://www.loom.com/share/a5014b41a78b49ffa7d23efd52c9b66a) for a full walkthrough of the system.
