@@ -1,0 +1,249 @@
+{
+  "name": "Inventory Management - Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "651d5d15-8487-4da4-830c-9d7a50328fc9",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.first().json;\n\nconst workflowName = err.workflow?.name || 'Unknown Workflow';\nconst nodeName     = err.execution?.lastNodeExecuted || 'Unknown Node';\nconst errorMsg     = err.execution?.error?.message || 'No message';\nconst errorStack   = err.execution?.error?.stack || '';\nconst execId       = err.execution?.id || 'N/A';\nconst execUrl      = err.execution?.url || '';\nconst timestamp    = new Date().toISOString();\n\n// Severity: CRITICAL if stock update failed, WARNING otherwise\nconst criticalNodes = ['Update Stock in Sheet', 'Update Inventory Sheet', 'Calculate New Stock', 'Calculate Updated Stock'];\nconst severity = criticalNodes.includes(nodeName) ? 'CRITICAL' : 'WARNING';\n\nconst subject = `${severity === 'CRITICAL' ? '🔴' : '🟡'} [${severity}] n8n Error – ${workflowName}`;\n\nconst html = `\n<h2 style='color:${severity === 'CRITICAL' ? '#c0392b' : '#e67e22'}'>\n  ${severity === 'CRITICAL' ? '🔴 CRITICAL' : '🟡 WARNING'} – Workflow Error\n</h2>\n<table border='1' cellpadding='8' style='border-collapse:collapse;width:100%'>\n  <tr><td><b>Workflow</b></td><td>${workflowName}</td></tr>\n  <tr><td><b>Failed Node</b></td><td>${nodeName}</td></tr>\n  <tr><td><b>Error</b></td><td style='color:#c0392b'>${errorMsg}</td></tr>\n  <tr><td><b>Severity</b></td><td>${severity}</td></tr>\n  <tr><td><b>Execution ID</b></td><td>${execId}</td></tr>\n  <tr><td><b>Time</b></td><td>${timestamp}</td></tr>\n  ${execUrl ? `<tr><td><b>View Execution</b></td><td><a href='${execUrl}'>${execUrl}</a></td></tr>` : ''}\n</table>\n${errorStack ? `<details><summary style='margin-top:12px;cursor:pointer'>Stack trace</summary><pre style='background:#f5f5f5;padding:12px;font-size:12px;overflow:auto'>${errorStack}</pre></details>` : ''}\n`;\n\nconst slackText = `${severity === 'CRITICAL' ? ':red_circle:' : ':warning:'} *[${severity}] n8n Error*\\n*Workflow:* ${workflowName}\\n*Node:* ${nodeName}\\n*Error:* ${errorMsg}\\n*Time:* ${timestamp}${execUrl ? `\\n*Execution:* ${execUrl}` : ''}`;\n\nreturn [{\n  json: {\n    subject,\n    html,\n    slack_text: slackText,\n    severity,\n    workflow_name: workflowName,\n    node_name: nodeName,\n    error_message: errorMsg,\n    exec_id: execId,\n    timestamp\n  }\n}];"
+      },
+      "id": "24155c0c-002d-4fcd-a7e1-72348702f054",
+      "name": "Format Error Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1233746209,
+          "mode": "list",
+          "cachedResultName": "Error Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=1233746209"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Severity": "={{ $json.severity }}",
+            "Workflow": "={{ $json.workflow_name }}",
+            "Failed Node": "={{ $json.node_name }}",
+            "Error Message": "={{ $json.error_message }}",
+            "Execution ID": "={{ $json.exec_id }}",
+            "Status": "unresolved"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Severity",
+              "displayName": "Severity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Workflow",
+              "displayName": "Workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Failed Node",
+              "displayName": "Failed Node",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Error Message",
+              "displayName": "Error Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Execution ID",
+              "displayName": "Execution ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8e780d81-1edb-4e15-9731-e78e27e172ae",
+      "name": "Log Error to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        48,
+        48
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "ksanu848@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "175fd3b4-c0c2-4bfa-8cd6-8545023bd5c6",
+      "name": "Send Error Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        48,
+        240
+      ],
+      "webhookId": "1b27fd25-f9f0-45aa-9508-3ea06a7e367e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AP1CLU9HV",
+          "mode": "list",
+          "cachedResultName": "inventory-management-automation"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        48,
+        432
+      ],
+      "id": "88968986-19ae-4883-9d43-ec0b37964a80",
+      "name": "Send Slack Alert",
+      "webhookId": "8c8c2fd5-7172-42b4-83e9-63fa7f7d0437",
+      "credentials": {
+        "slackApi": {
+          "id": "4qvC7OnRRv7VPzVg",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Details": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5796569f-5b64-4762-8ddf-c980360c7b83",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "37ee74431af36e5f6e2177b0b6e0ba77f82f98e5f13559f1dbfcc6190c6b5601"
+  },
+  "id": "4SAtmX_2UzS140PxEURAI",
+  "tags": [
+    {
+      "updatedAt": "2026-03-26T12:52:08.244Z",
+      "createdAt": "2026-03-26T12:52:08.244Z",
+      "id": "i0LLRlDqrgHLKx8r",
+      "name": "Inventory Management"
+    }
+  ]
+}

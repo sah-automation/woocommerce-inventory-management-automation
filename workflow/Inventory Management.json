@@ -1,0 +1,1460 @@
+{
+  "name": "Inventory Management",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Extract line items from WooCommerce order payload\nconst order = $input.first().json;\nconst lineItems = $input.first().json.body.line_items || [];\n\nreturn lineItems.map(item => ({\n  json: {\n    order_id: order.body.id,\n    sku: item.sku || item.product_id.toString(),\n    product_name: item.name,\n    qty_ordered: item.quantity\n  }\n}));"
+      },
+      "id": "c8f1c4ef-a2ac-4a7d-8ba2-4df4deed7b36",
+      "name": "Extract Line Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "4c3fba03-3a04-4cda-ac72-778a8a6d2083",
+      "name": "Read Inventory Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -640,
+        192
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orderedItem = $('Extract Line Items').item.json;\nconst inventoryRows = $('Read Inventory Sheet').all();\n\nconst match = inventoryRows.find(row => row.json.SKU === orderedItem.sku);\nif (!match) throw new Error(`SKU not found: ${orderedItem.sku}`);\n\nconst currentStock = parseInt(match.json['Current Stock']) || 0;\nconst newStock = currentStock - orderedItem.qty_ordered;\nconst threshold = parseInt(match.json['Reorder Threshold']) || 5;\n\nreturn [{\n  json: {\n    sku: orderedItem.sku,\n    order_id: orderedItem.order_id,\n    product_name: match.json['Product Name'],\n    old_stock: currentStock,\n    new_stock: newStock,\n    threshold: threshold,\n    is_low_stock: newStock <= threshold,\n    supplier_email: match.json['Supplier Email'],\n    reorder_qty: match.json['Reorder Qty'],\n    qty_ordered: orderedItem.qty_ordered\n  }\n}];"
+      },
+      "id": "363cb746-02aa-4d2d-b4cc-78fb97306c05",
+      "name": "Calculate New Stock",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Current Stock": "={{ $json.new_stock }}",
+            "Last Updated": "={{ $now.toISO() }}",
+            "row_number": 0,
+            "SKU": "={{ $json.sku }}",
+            "Product Name": "={{ $json.product_name }}",
+            "Reorder Threshold": "={{ $json.threshold }}",
+            "Reorder Qty": "={{ $json.reorder_qty }}",
+            "Supplier Email": "={{ $json.supplier_email }}"
+          },
+          "matchingColumns": [
+            "SKU"
+          ],
+          "schema": [
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Product Name",
+              "displayName": "Product Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Current Stock",
+              "displayName": "Current Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reorder Threshold",
+              "displayName": "Reorder Threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reorder Qty",
+              "displayName": "Reorder Qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Supplier Email",
+              "displayName": "Supplier Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "588d5a3f-91ac-4176-88bd-645ef417b803",
+      "name": "Update Stock in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -240,
+        80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1557545926,
+          "mode": "list",
+          "cachedResultName": "Orders log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=1557545926"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order ID": "={{ $json.order_id }}",
+            "SKU": "={{ $json.sku }}",
+            "Qty Sold": "={{ $json.qty_ordered }}",
+            "Date": "={{ $now.toISO() }}",
+            "Status": "processed"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Qty Sold",
+              "displayName": "Qty Sold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "871e56f3-1415-4911-b554-014e7ea1ac42",
+      "name": "Log Order",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -240,
+        288
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "low-stock-check",
+              "leftValue": "={{ $json['Current Stock'] }}",
+              "rightValue": "={{ $json['Reorder Threshold'] }}",
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6ea0be13-d93a-4710-8239-fd1c9b56d384",
+      "name": "Is Low Stock?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "ksanu848@gmail.com",
+        "subject": "=⚠️ Low Stock: {{ $('Update Stock in Sheet').item.json['Product Name'] }} (SKU: {{ $('Update Stock in Sheet').item.json.SKU }})",
+        "message": "=<h2>Low Stock Alert</h2><p>Order <strong>#{{ $('Calculate New Stock').item.json.order_id }}</strong> triggered a low stock warning:</p><table border='1' cellpadding='8' style='border-collapse:collapse'><tr><td><b>Product</b></td><td>{{ $('Calculate New Stock').item.json.product_name }}</td></tr><tr><td><b>SKU</b></td><td>{{ $('Calculate New Stock').item.json.sku }}</td></tr><tr><td><b>Stock Now</b></td><td>{{ $('Calculate New Stock').item.json.new_stock }}</td></tr><tr><td><b>Threshold</b></td><td>{{ $('Calculate New Stock').item.json.threshold }}</td></tr><tr><td><b>Suggested Reorder Qty</b></td><td>{{ $('Calculate New Stock').item.json.reorder_qty }}</td></tr><tr><td><b>Supplier</b></td><td>{{ $('Calculate New Stock').item.json.supplier_email }}</td></tr></table>",
+        "options": {}
+      },
+      "id": "e444b9df-880e-4433-8db0-6eb302674a48",
+      "name": "Send Low Stock Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        272,
+        0
+      ],
+      "webhookId": "26c20c56-95c6-4650-86fc-99079a4e3215",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "woocommerce-order-updated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1296,
+        208
+      ],
+      "id": "35091014-8732-40d0-8626-b9a6e8c79aeb",
+      "name": "Woocommerce Order Updated Webhook",
+      "webhookId": "00e38f7a-a6cf-456f-9f60-ff3cf24e4dd3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a2dc9b9b-a6c0-498c-9a13-3d9088225e9d",
+              "leftValue": "={{ $json.body.status }}",
+              "rightValue": "=processing",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1072,
+        208
+      ],
+      "id": "c9d23d6a-df4c-4bcf-9448-f901fb85f25d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "restock-confirm",
+        "options": {}
+      },
+      "id": "79b96553-98be-4ffb-9918-44e2e335619e",
+      "name": "Restock Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        1648
+      ],
+      "webhookId": "restock-confirm-webhook",
+      "notes": "POST payload: { \"sku\": \"SKU123\", \"qty_received\": 50, \"supplier_name\": \"Supplier Co\" }"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Tally webhook payload\n// Tally sends: body.data.fields[] where each field has label, type, value, options\nconst body = $input.first().json.body;\nconst fields = body?.data?.fields || [];\n\n// Helper: get field by label\nconst getField = (label) => fields.find(f => f.label === label);\n\n// Helper: resolve DROPDOWN selected option text from its ID\nconst resolveDropdown = (field) => {\n  if (!field || !field.value || !field.options) return null;\n  const selectedId = Array.isArray(field.value) ? field.value[0] : field.value;\n  const match = field.options.find(opt => opt.id === selectedId);\n  return match ? match.text : null;\n};\n\n// Extract each field\nconst skuField = getField('SKU');\nconst qtyField = getField('Quantity Received');\nconst supplierField = getField('Supplier Name');\n\nconst sku = resolveDropdown(skuField);\nconst qty_received = qtyField ? parseInt(qtyField.value) : null;\nconst supplier_name = resolveDropdown(supplierField) || 'Unknown Supplier';\n\n// Validate\nif (!sku) throw new Error('Could not resolve SKU from Tally dropdown');\nif (!qty_received || isNaN(qty_received)) throw new Error('Missing or invalid Quantity Received');\n\nreturn [{\n  json: {\n    sku: sku.toString().trim().toUpperCase(),\n    qty_received,\n    supplier_name,\n    received_at: body.data.createdAt || new Date().toISOString(),\n    tally_response_id: body.data.responseId\n  }\n}];"
+      },
+      "id": "a25bd8af-b6df-4026-8422-ec65696ff6ce",
+      "name": "Parse & Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        1648
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "2dfd7f36-599b-4139-8c23-51d6dae0036b",
+      "name": "Read Current Inventory",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -816,
+        1648
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const restock = $('Parse & Validate Payload').item.json;\nconst inventoryRows = $('Read Current Inventory').all();\n\nconst match = inventoryRows.find(row => \n  row.json.SKU && row.json.SKU.toString().trim().toUpperCase() === restock.sku\n);\n\nif (!match) throw new Error(`SKU not found in inventory: ${restock.sku}`);\n\nconst currentStock = parseInt(match.json['Current Stock']) || 0;\nconst newStock = currentStock + restock.qty_received;\n\nreturn [{\n  json: {\n    sku: restock.sku,\n    product_name: match.json['Product Name'],\n    old_stock: currentStock,\n    new_stock: newStock,\n    qty_received: restock.qty_received,\n    supplier_name: restock.supplier_name,\n    received_at: restock.received_at,\n    threshold: parseInt(match.json['Reorder Threshold']) || 5\n  }\n}];"
+      },
+      "id": "67a68c3b-877e-4a52-b98c-896df8b894ab",
+      "name": "Calculate Updated Stock",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        1648
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "SKU": "={{ $json.sku }}",
+            "Current Stock": "={{ $json.new_stock }}",
+            "Last Updated": "={{ $json.received_at }}"
+          },
+          "matchingColumns": [
+            "SKU"
+          ],
+          "schema": [
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Product Name",
+              "displayName": "Product Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Current Stock",
+              "displayName": "Current Stock",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reorder Threshold",
+              "displayName": "Reorder Threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Reorder Qty",
+              "displayName": "Reorder Qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Supplier Email",
+              "displayName": "Supplier Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "42f9fe87-240a-4dd6-9f3b-b469cace4240",
+      "name": "Update Inventory Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -384,
+        1648
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AP1CLU9HV",
+          "mode": "list",
+          "cachedResultName": "inventory-management-automation"
+        },
+        "text": "=✅ Restock Confirmed: {{ $('Calculate Updated Stock').item.json.product_name }} +{{ $('Calculate Updated Stock').item.json.qty_received }} units\n\n• *Product:* {{ $('Calculate Updated Stock').item.json.product_name }}\n• *SKU:* {{ $('Calculate Updated Stock').item.json.sku }}\n• *Units Received:* {{ $('Calculate Updated Stock').item.json.qty_received }}\n• *Old Stock:* {{ $('Calculate Updated Stock').item.json.old_stock }}\n• *New Stock:* {{ $('Calculate Updated Stock').item.json.new_stock }}\n• *Supplier:* {{ $('Calculate Updated Stock').item.json.supplier_name }}\n• *Received At:* {{ $('Calculate Updated Stock').item.json.received_at }}",
+        "otherOptions": {}
+      },
+      "id": "aeaedeff-61c4-4bfc-8a95-18e7a2981a4a",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        1504
+      ],
+      "webhookId": "ceecd828-61d1-41bf-b356-ea481782eff6",
+      "credentials": {
+        "slackApi": {
+          "id": "4qvC7OnRRv7VPzVg",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "ksanu848@gmail.com",
+        "subject": "=✅ Restock Confirmed: {{ $('Calculate Updated Stock').item.json.product_name }} +{{ $('Calculate Updated Stock').item.json.qty_received }} units",
+        "message": "=<h2>Restock Received</h2><table border='1' cellpadding='8' style='border-collapse:collapse'><tr><td><b>Product</b></td><td>{{ $('Calculate Updated Stock').item.json.product_name }}</td></tr><tr><td><b>SKU</b></td><td>{{ $('Calculate Updated Stock').item.json.sku }}</td></tr><tr><td><b>Units Received</b></td><td>{{ $('Calculate Updated Stock').item.json.qty_received }}</td></tr><tr><td><b>Old Stock</b></td><td>{{ $('Calculate Updated Stock').item.json.old_stock }}</td></tr><tr><td><b>New Stock</b></td><td>{{ $('Calculate Updated Stock').item.json.new_stock }}</td></tr><tr><td><b>Supplier</b></td><td>{{ $('Calculate Updated Stock').item.json.supplier_name }}</td></tr><tr><td><b>Received At</b></td><td>{{ $('Calculate Updated Stock').item.json.received_at }}</td></tr></table>",
+        "options": {}
+      },
+      "id": "6e568614-394c-42e2-a441-a4a456de00e8",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        1760
+      ],
+      "webhookId": "0e5008f5-e235-4756-aaff-585310d01a2a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split items into auto-order vs manual-approval buckets\nconst rows = $input.all();\nconst N8N_BASE_URL = 'https://n8n.sahcreatives.com';\n\nconst needsReorder = rows.filter(row => {\n  const stock = parseInt(row.json['Current Stock']) || 0;\n  const threshold = parseInt(row.json['Reorder Threshold']) || 5;\n  return stock <= threshold;\n});\n\nif (needsReorder.length === 0) {\n  return [{ json: { has_items: false, auto_items: [], manual_items: [], count: 0 } }];\n}\n\nconst auto_items = [];\nconst manual_items = [];\n\nneedsReorder.forEach(r => {\n  const autoAllowed = (r.json['Auto Ordering Allowed'] || '').toString().trim().toLowerCase();\n  const item = {\n    sku: r.json.SKU,\n    product_name: r.json['Product Name'],\n    current_stock: r.json['Current Stock'],\n    threshold: r.json['Reorder Threshold'],\n    reorder_qty: r.json['Reorder Qty'],\n    supplier_email: r.json['Supplier Email']\n  };\n  if (autoAllowed === 'yes') {\n    auto_items.push(item);\n  } else {\n    // Build approve/reject URLs for this specific item\n    const encoded = encodeURIComponent(JSON.stringify(item));\n    manual_items.push({\n      ...item,\n      approve_url: `${N8N_BASE_URL}/webhook/restock-approve?action=approve&data=${encoded}`,\n      reject_url: `${N8N_BASE_URL}/webhook/restock-approve?action=reject&data=${encoded}`\n    });\n  }\n});\n\nreturn [{\n  json: {\n    has_items: true,\n    count: needsReorder.length,\n    auto_items,\n    manual_items\n  }\n}];"
+      },
+      "id": "17a47239-b453-4fd2-acc9-e3ae57eb9234",
+      "name": "Find & Categorise Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has-auto-items",
+              "leftValue": "={{ $('Any Items to Reorder?').item.json.auto_items.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1197a1bc-b11c-4e43-97f7-43091f39d235",
+      "name": "Any Auto-Order Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "auto_items",
+        "options": {}
+      },
+      "id": "137f412b-4084-48cc-b6c7-aae15208470a",
+      "name": "Split Auto Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        160,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.supplier_email }}",
+        "subject": "=Purchase Order Request: {{ $json.product_name }} (SKU: {{ $json.sku }})",
+        "message": "=<h2>Purchase Order Request</h2><p>Dear Supplier,</p><p>We would like to place an order for the following item:</p><table border='1' cellpadding='8' style='border-collapse:collapse'><tr><td><b>Product</b></td><td>{{ $json.product_name }}</td></tr><tr><td><b>SKU</b></td><td>{{ $json.sku }}</td></tr><tr><td><b>Quantity Required</b></td><td>{{ $json.reorder_qty }}</td></tr><tr><td><b>Current Stock</b></td><td>{{ $json.current_stock }}</td></tr></table><p>Please confirm availability and estimated delivery date.</p><p>Thank you.</p>",
+        "options": {}
+      },
+      "id": "fe68d8f8-ef4d-42d6-9cc8-96f5ae37fadb",
+      "name": "Email Supplier (Auto)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        400,
+        736
+      ],
+      "webhookId": "b88c3bce-b229-423c-92e2-f89b9705ac7f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "restock-approve",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "9266d8e9-8617-4820-bb68-e8af2b482ce9",
+      "name": "Approval Click Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        1136
+      ],
+      "webhookId": "restock-approve-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query;\nconst action = query.action;\nlet item = {};\ntry {\n  item = JSON.parse(decodeURIComponent(query.data || '{}'));\n} catch(e) {\n  throw new Error('Invalid item data in URL');\n}\n\nreturn [{\n  json: {\n    action,\n    approved: action === 'approve',\n    sku: item.sku,\n    product_name: item.product_name,\n    reorder_qty: item.reorder_qty,\n    supplier_email: item.supplier_email,\n    current_stock: item.current_stock\n  }\n}];"
+      },
+      "id": "34dd5514-c9be-41aa-b02e-fc52e1d5adc6",
+      "name": "Parse Approval Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-approved",
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d93e276c-9f74-4b43-a487-e9114c4f81b0",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.supplier_email }}",
+        "subject": "=Purchase Order Request: {{ $json.product_name }} (SKU: {{ $json.sku }})",
+        "message": "=<h2>Purchase Order Request</h2><p>Dear Supplier,</p><p>We would like to place an order for the following item:</p><table border='1' cellpadding='8' style='border-collapse:collapse'><tr><td><b>Product</b></td><td>{{ $json.product_name }}</td></tr><tr><td><b>SKU</b></td><td>{{ $json.sku }}</td></tr><tr><td><b>Quantity Required</b></td><td>{{ $json.reorder_qty }}</td></tr><tr><td><b>Current Stock</b></td><td>{{ $json.current_stock }}</td></tr></table><p>Please confirm availability and estimated delivery date.</p><p>Thank you.</p>",
+        "options": {}
+      },
+      "id": "7a100880-94bc-4fa6-973e-47f3a4eea8d2",
+      "name": "Email Supplier (Manual)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        1056
+      ],
+      "webhookId": "0347eb1e-677e-4ef3-ba4a-1d0081dc5d49",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "options": {}
+      },
+      "id": "085b1e63-e585-423e-b0fd-56e60e851616",
+      "name": "Respond Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "options": {}
+      },
+      "id": "5fd19650-0492-460a-b228-1e805bde9694",
+      "name": "Respond Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Order Deduct Stock",
+        "height": 544,
+        "width": 2496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        -64
+      ],
+      "id": "97052f0b-625c-4119-ba67-827b0bfd435e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Daily Restock Alert",
+        "height": 944,
+        "width": 2496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        496
+      ],
+      "id": "41795572-2771-4205-932d-192b19f361ea",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Inventory Restock Update",
+        "height": 528,
+        "width": 2496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        1456
+      ],
+      "id": "2bd89cfd-b9e9-400a-8d6d-e2563cb85d46",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "81dd1326-31e9-43fe-9931-98fece36ea9c",
+      "name": "Daily 8AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1312,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM",
+          "mode": "list",
+          "cachedResultName": "Woocommerce Inventory Management",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PkwdxIA7LiNAxZg9jwdrbN110zXE9g_6jGui1oAa-dM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "ffd107d6-7d88-422d-bd60-4d88aca9a84d",
+      "name": "Read All Inventory",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1088,
+        736
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VVym3egTu9EE5ra8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has-items-check",
+              "leftValue": "={{ $json.has_items }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0c949f2a-2021-4ab6-b641-e79349011f9d",
+      "name": "Any Items to Reorder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -656,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// --- AUTO-ORDER section ---\nconst autoRows = data.auto_items.map(item =>\n  `<tr>\n    <td style='padding:8px;border:1px solid #ddd'>${item.sku}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.product_name}</td>\n    <td style='padding:8px;border:1px solid #ddd;color:#c0392b'>${item.current_stock}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.reorder_qty}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.supplier_email}</td>\n    <td style='padding:8px;border:1px solid #ddd;color:#27ae60'>Auto-ordering ✅</td>\n  </tr>`\n).join('');\n\nconst autoSection = data.auto_items.length > 0 ? `\n  <h3 style='color:#27ae60'>✅ Auto-ordering (${data.auto_items.length} item${data.auto_items.length > 1 ? 's' : ''})</h3>\n  <p>These will be ordered automatically — no action needed.</p>\n  <table style='border-collapse:collapse;width:100%;margin-bottom:24px'>\n    <thead><tr style='background:#f0f0f0'>\n      <th style='padding:8px;border:1px solid #ddd'>SKU</th>\n      <th style='padding:8px;border:1px solid #ddd'>Product</th>\n      <th style='padding:8px;border:1px solid #ddd'>Stock</th>\n      <th style='padding:8px;border:1px solid #ddd'>Reorder Qty</th>\n      <th style='padding:8px;border:1px solid #ddd'>Supplier</th>\n      <th style='padding:8px;border:1px solid #ddd'>Status</th>\n    </tr></thead>\n    <tbody>${autoRows}</tbody>\n  </table>` : '';\n\n// --- MANUAL APPROVAL section ---\nconst manualRows = data.manual_items.map(item =>\n  `<tr>\n    <td style='padding:8px;border:1px solid #ddd'>${item.sku}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.product_name}</td>\n    <td style='padding:8px;border:1px solid #ddd;color:#c0392b'>${item.current_stock}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.reorder_qty}</td>\n    <td style='padding:8px;border:1px solid #ddd'>${item.supplier_email}</td>\n    <td style='padding:8px;border:1px solid #ddd'>\n      <a href='${item.approve_url}' style='background:#27ae60;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;margin-right:8px;font-weight:bold'>✅ Approve</a><br><br>\n      <a href='${item.reject_url}' style='background:#c0392b;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-weight:bold'>❌ Reject</a>\n    </td>\n  </tr>`\n).join('');\n\nconst manualSection = data.manual_items.length > 0 ? `\n  <h3 style='color:#e67e22'>⚠️ Manual approval required (${data.manual_items.length} item${data.manual_items.length > 1 ? 's' : ''})</h3>\n  <p>Click <strong>Approve</strong> to send a reorder email to the supplier, or <strong>Reject</strong> to skip.</p>\n  <table style='border-collapse:collapse;width:100%;margin-bottom:24px'>\n    <thead><tr style='background:#f0f0f0'>\n      <th style='padding:8px;border:1px solid #ddd'>SKU</th>\n      <th style='padding:8px;border:1px solid #ddd'>Product</th>\n      <th style='padding:8px;border:1px solid #ddd'>Stock</th>\n      <th style='padding:8px;border:1px solid #ddd'>Reorder Qty</th>\n      <th style='padding:8px;border:1px solid #ddd'>Supplier</th>\n      <th style='padding:8px;border:1px solid #ddd'>Action</th>\n    </tr></thead>\n    <tbody>${manualRows}</tbody>\n  </table>` : '';\n\nconst html = `\n  <h2>📦 Daily Restock Report – ${new Date().toDateString()}</h2>\n  <p>${data.count} product(s) need restocking today.</p>\n  ${autoSection}\n  ${manualSection}\n`;\n\nreturn [{ json: { html, count: data.count, auto_items: data.auto_items } }];"
+      },
+      "id": "957919ac-16f6-44ac-8a11-9ad8ac3d74a6",
+      "name": "Build Email Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        608
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "0099d194-70e1-477b-b554-37c0dd15daf7",
+      "name": "No Action Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "ksanu848@gmail.com",
+        "subject": "=📦 Daily Restock Report – {{ $json.count }} item(s) need attention",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "96034f98-64d9-4c1e-8de2-644505614ada",
+      "name": "Send Daily Report Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        544
+      ],
+      "webhookId": "4af4ac60-d4e2-4b49-a08c-73a3a65d88ea",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OHQgwHhQBUqCSTOs",
+          "name": "tanisitech@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        560
+      ],
+      "id": "5ed65d1c-f0eb-48f8-bf14-ab5a452d0bc9",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {
+    "Restock Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.sahcreatives.com",
+            "user-agent": "Tally Webhooks",
+            "content-length": "1237",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "baggage": "sentry-environment=production,sentry-release=14f8c15c4d14cb7d207f73b3f531b7a3df9a8ffb,sentry-public_key=6af4b6673f1648edaa8fef3f2ca43405,sentry-trace_id=c7edcc6798957b2903217cb8cb3e24a1,sentry-org_id=407628,sentry-sampled=false,sentry-sample_rand=0.30379075084425133,sentry-sample_rate=0",
+            "content-type": "application/json",
+            "sentry-trace": "c7edcc6798957b2903217cb8cb3e24a1-c9ffd4afda2019bf-0",
+            "x-forwarded-for": "34.96.41.194",
+            "x-forwarded-host": "n8n.sahcreatives.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "96d688991dc8",
+            "x-real-ip": "34.96.41.194"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "eventId": "9bc9cc8a-d466-4270-8f79-e4ea6244d11a",
+            "eventType": "FORM_RESPONSE",
+            "createdAt": "2026-03-27T12:22:38.079Z",
+            "data": {
+              "responseId": "vXGd0R4",
+              "submissionId": "vXGd0R4",
+              "respondentId": "kdWMOjr",
+              "formId": "eqLp2E",
+              "formName": "Inventory Restock Form",
+              "createdAt": "2026-03-27T12:22:38.000Z",
+              "fields": [
+                {
+                  "key": "question_AJKgJW",
+                  "label": "SKU",
+                  "type": "DROPDOWN",
+                  "value": [
+                    "b0021eca-b859-4c1d-bba8-d5a71026add4"
+                  ],
+                  "options": [
+                    {
+                      "id": "cacdd858-1ee8-451a-b6f1-cc108443b275",
+                      "text": "sku1"
+                    },
+                    {
+                      "id": "b2dd01ac-4645-4aae-a731-04b27dca00a8",
+                      "text": "sku2"
+                    },
+                    {
+                      "id": "30b260a1-ef3b-4afa-aef1-f0f7c8c8a03a",
+                      "text": "sku3"
+                    },
+                    {
+                      "id": "b0021eca-b859-4c1d-bba8-d5a71026add4",
+                      "text": "SC-14-722013 M"
+                    },
+                    {
+                      "id": "64e3af12-aaa0-4857-80b5-61f438c07fc8",
+                      "text": "sku5"
+                    }
+                  ]
+                },
+                {
+                  "key": "question_B1Ky1A",
+                  "label": "Quantity Received",
+                  "type": "INPUT_NUMBER",
+                  "value": 5
+                },
+                {
+                  "key": "question_kA9oAJ",
+                  "label": "Supplier Name",
+                  "type": "DROPDOWN",
+                  "value": [
+                    "70dee93a-35d2-4189-8412-b0bf453113e7"
+                  ],
+                  "options": [
+                    {
+                      "id": "18678d2b-d437-436f-94a1-8495380b9538",
+                      "text": "e1"
+                    },
+                    {
+                      "id": "a15aed14-ae57-4058-92d2-73e840a3757e",
+                      "text": "e2"
+                    },
+                    {
+                      "id": "1c1b2fd7-bb9b-4d97-9cc0-97aad6c4ed48",
+                      "text": "e3"
+                    },
+                    {
+                      "id": "70dee93a-35d2-4189-8412-b0bf453113e7",
+                      "text": "e4"
+                    },
+                    {
+                      "id": "fcfdb0a3-82a3-4f45-a66e-0d98317107e3",
+                      "text": "e5"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "webhookUrl": "https://n8n.sahcreatives.com/webhook/restock-confirm",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Extract Line Items": {
+      "main": [
+        [
+          {
+            "node": "Read Inventory Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Inventory Sheet": {
+      "main": [
+        [
+          {
+            "node": "Calculate New Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate New Stock": {
+      "main": [
+        [
+          {
+            "node": "Update Stock in Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Stock in Sheet": {
+      "main": [
+        [
+          {
+            "node": "Is Low Stock?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Low Stock?": {
+      "main": [
+        [
+          {
+            "node": "Send Low Stock Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Woocommerce Order Updated Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract Line Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restock Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Read Current Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Current Inventory": {
+      "main": [
+        [
+          {
+            "node": "Calculate Updated Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Updated Stock": {
+      "main": [
+        [
+          {
+            "node": "Update Inventory Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Inventory Sheet": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find & Categorise Items": {
+      "main": [
+        [
+          {
+            "node": "Any Items to Reorder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Auto-Order Items?": {
+      "main": [
+        [
+          {
+            "node": "Split Auto Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Auto Items": {
+      "main": [
+        [
+          {
+            "node": "Email Supplier (Auto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Click Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Approval Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Approval Action": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Email Supplier (Manual)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Supplier (Manual)": {
+      "main": [
+        [
+          {
+            "node": "Respond Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 8AM Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Read All Inventory": {
+      "main": [
+        [
+          {
+            "node": "Find & Categorise Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Items to Reorder?": {
+      "main": [
+        [
+          {
+            "node": "Build Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email Report": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Report Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Any Auto-Order Items?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Daily Report Email": {
+      "main": [
+        []
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read All Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "4SAtmX_2UzS140PxEURAI",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "8377076f-3e82-48de-8a57-6db5c0bb23ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "37ee74431af36e5f6e2177b0b6e0ba77f82f98e5f13559f1dbfcc6190c6b5601"
+  },
+  "id": "rPqH2krv7UeniHq-fdGvV",
+  "tags": [
+    {
+      "updatedAt": "2026-03-26T12:52:08.244Z",
+      "createdAt": "2026-03-26T12:52:08.244Z",
+      "id": "i0LLRlDqrgHLKx8r",
+      "name": "Inventory Management"
+    }
+  ]
+}
